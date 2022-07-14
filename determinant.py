@@ -1,0 +1,2 @@
+def det(mat):
+    pass
