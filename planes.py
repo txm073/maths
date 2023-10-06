@@ -1,6 +1,4 @@
-from typing import Iterable, Callable, Any, Optional, Union
-
-Number = Union[int, float, complex]
+from utils import *
 
 class Point:
     
@@ -23,35 +21,14 @@ class Point:
     def __sub__(self, p: 'Point') -> 'Point':
         return Point(self.x - p.x, self.y - p.y, self.z - p.z)    
     
+    def __eq__(self, p: 'Point') -> bool:
+        return self.x == p.x and self.y == p.y and self.z == p.z
+    
     def __repr__(self) -> str:
         return f"{'Point' if self.name is None else str(self.name)}({self.x}, {self.y}, {self.z})"
 
 
 Vector3D = Point
-
-
-def overload(*functions: Iterable[Callable]) -> Callable:
-    def wrapper(*args: Iterable[Any], **kwargs: dict[Any, Any]) -> Callable:
-        # Match correct overload from functions list
-        arg_values = list(args) + list(kwargs.values())
-        arg_types = [type(arg) for arg in arg_values]
-        copy = list(functions)
-        copy = list(filter(lambda fn: len(fn.__annotations__) - 1 == len(arg_values), copy))
-        for fn in copy:
-            annotations = fn.__annotations__
-            if annotations.get("return"):
-                annotations.pop("return")
-            is_match = True
-            for expected_type, actual_type in zip(annotations.values(), arg_types):
-                if isinstance(expected_type, actual_type):
-                    is_match = False
-                    break
-            if is_match:
-                return fn(*args, **kwargs)    
-        raise TypeError(
-            "no overloaded function matched the given arguments"
-        )
-    return wrapper
 
 
 class Plane:
@@ -83,5 +60,29 @@ class Plane:
     __init__ = overload(cartesian, vector)
     
 
-print(Plane(2, 5, -3, 12))
-print(Plane(Point(3, 0, 2, "A"), Point(1, 3, -4, "B"), Point(7, 6, -5, "C")))
+class Line:
+
+    def __init__(self, p1: Point, p2: Point) -> None:
+        self.p1, self.p2 = p1, p2
+        self.direction = p1 - p2
+
+    def __repr__(self) -> str:
+        return f"Line(({self.p1.x}, {self.p1.y}, {self.p1.z}) + k({self.direction.x}, {self.direction.y}, {self.direction.z}))"
+    
+    
+def is_parallel(l1: Line, l2: Line) -> None:
+    k1 = l1.direction.x / l2.direction.x
+    k2 = l1.direction.y / l2.direction.y
+    k3 = l1.direction.z / l2.direction.z
+    return k1 == k2 == k3
+
+def intersection_point(l1: Line, l2: Line) -> Point:
+    pass
+
+def shortest_distance(l1: Line, l2: Line) -> Number:
+    pass
+
+    
+l1 = Line(Point(2, 5, -3), Point(-1, 4, 7))
+l2 = Line(Point(0, 0, 0), Point(-6, -2, 20))
+pi = Plane(Point(3, 0, 2, "A"), Point(1, 3, -4, "B"), Point(7, 6, -5, "C"))
