@@ -1,14 +1,17 @@
 import time
 from typing import Callable, Any, Iterable, Optional
 
-def timed(fn: Callable) -> Callable:
-    def inner(*args, **kwargs) -> Any:
-        start = time.perf_counter()
-        value = fn(*args, **kwargs)
-        end = time.perf_counter()
-        #print(f"Function {fn.__name__} ran in {(end-start):.10f}s")
-        return value
-    return inner
+def timed(verbose: Optional[bool] = False) -> Callable:
+    def wrapper(fn: Callable) -> Callable:
+        def inner(*args, **kwargs) -> Any:
+            start = time.perf_counter()
+            value = fn(*args, **kwargs)
+            end = time.perf_counter()
+            if verbose:
+                print(f"Function {fn.__name__} ran in {(end-start):.10f}s")
+            return value
+        return inner
+    return wrapper
 
 def gcd(a: int, b: int) -> int:
     """ Find the greatest common divisor of integers a and b """
@@ -49,8 +52,7 @@ def solve_congruence(a: int, b: int, m: int) -> list[int]:
     """ Solve for integers x such that ax ≡ b (mod m)
         where x is in the set of least residues modulo m [0, m-1]"""
     d = gcd(a, m)
-    if (b % d != 0):
-        return []
+    assert b % d == 0, "no possible solutions"        
     a, b, m = a // d, b // d, m // d
     n = multiplicative_inverse(a, m, check_coprime=False)
     x = (b * n) % m
@@ -104,7 +106,48 @@ def euler_totient(n: int, prime: Optional[bool] = True) -> int:
     distinct_prime_factors = set(prime_factors(n))
     return n // product(distinct_prime_factors) * product([(p - 1) for p in distinct_prime_factors])
 
-n = 943272197412
-pfs = prime_factors(n)
-print(pfs)
-assert product(pfs) == n
+
+""" 
+Various versions of a general number sieve used to
+find all prime numbers less than an integer n 
+"""
+
+def sieve(n: int) -> list[int]:
+    assert n <= 100000000, "n is too large, use the segmented_sieve function instead"
+    nums = list(range(2, n))
+    for i in range(len(nums)):
+        if nums[i] == 0:
+            continue
+        j = 2 * nums[i]
+        while j < n:
+            nums[j - 2] = 0
+            j += nums[i]
+    return list(filter(lambda n: n != 0, nums))
+    
+def _segment(nums: list[int], known_primes: list[int]) -> list[int]:
+    lower, upper = nums[0], nums[-1]
+    if not known_primes:
+        return sieve(upper+1)
+    for p in known_primes:
+        j = lower % p
+        if j != 0:
+            j = p - j
+        while j < upper - lower + 1:
+            nums[j] = 0
+            j += p
+    return list(filter(lambda n: n != 0, nums))
+    
+def segmented_sieve(n: int, segment_size: Optional[int] = None) -> list[int]:
+    if n < 10:
+        return sieve(n)
+    if segment_size is None:
+        segment_size = min(1000000, max(10, n // 100))
+    primes = []
+    n_segments = n // segment_size + (n % segment_size != 0)
+    for i in range(n_segments):
+        nums = list(range(i * segment_size if i else 2, (i + 1) * segment_size))
+        primes.extend(_segment(nums, primes))
+        print(f"Finished segment {i+1}/{n_segments}: found {len(primes)} primes so far")
+    return primes
+
+print(solve_congruence(36, 18, 21))
