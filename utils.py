@@ -1,6 +1,7 @@
 from typing import Iterable, Callable, Any, Optional, Union
+from sympy import Number
 
-Number = Union[int, float, complex]
+#Number = Union[int, float, complex]
 
 def overload(*functions: Iterable[Callable]) -> Callable:
     def wrapper(*args: Iterable[Any], **kwargs: dict[Any, Any]) -> Callable:

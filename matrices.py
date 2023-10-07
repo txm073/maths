@@ -32,6 +32,21 @@ class Matrix:
     def col(self, i: int) -> list[Number]:
         return [self.data[j][i] for j in range(self.rows)]
 
+    def set_row(self, i: int, row: list[Number]) -> None:
+        if len(row) != self.cols:
+            raise TypeError(
+                f"row must contain exactly {self.cols} elements"
+            )
+        self.data[i] = row
+
+    def set_col(self, i: int, col: list[Number]) -> None:
+        if len(col) != self.rows:
+            raise TypeError(
+                f"column must contain exactly {self.rows} elements"
+            )
+        for r in range(self.rows):
+            self.data[r][i] = col[r]
+
     def is_row(self) -> bool:
         return self.rows == 1
     
@@ -57,7 +72,7 @@ class Matrix:
             print("|", file=s)
         return s.getvalue()[:-1]
 
-    def __mul__(self, other: 'Matrix' | Number) -> 'Matrix':
+    def __mul__(self, other: Union['Matrix', Number]) -> 'Matrix':
         if isinstance(other, Number):
             return self.multiply_scalar(other)
         return self.multiply_matrix(self, other)
@@ -70,11 +85,37 @@ class Matrix:
         if exponent == 0:
             return Matrix(self.identity().data)
         elif exponent < 0:
-            return self.inverse() ** (-exponent)
+            return self._ref() ** (-exponent)
         m = Matrix([[1, 0], [0, 1]])
-        for i in range(exponent):
+        for _ in range(exponent):
             m *= self
         return m
+
+    def ew_add(self, a: Union[list[Number], Number], b: Union[list[Number], Number]) -> Union[list[Number], Number]:
+        if isinstance(a, Number):
+            if isinstance(b, Number):
+                return a + b
+            return [a + elem for elem in b]
+        if isinstance(b, Number):
+            return [b + elem for elem in a]
+        if len(a) != len(b):
+            raise TypeError(
+                "vectors must be the same length"
+            )
+        return [i + j for i, j in zip(a, b)]
+
+    def ew_mul(self, a: Union[list[Number], Number], b: Union[list[Number], Number]) -> Union[list[Number], Number]:
+        if isinstance(a, Number):
+            if isinstance(b, Number):
+                return a * b
+            return [a * elem for elem in b]
+        if isinstance(b, Number):
+            return [b * elem for elem in a]
+        if len(a) != len(b):
+            raise TypeError(
+                "vectors must be the same length"
+            )
+        return [i * j for i, j in zip(a, b)]
     
     def identity(self) -> 'Matrix':
         if not self.is_square():
@@ -100,19 +141,15 @@ class Matrix:
         ])
 
     def det(self) -> Number:
-        pass 
+        pass
     
     def inverse(self) -> 'Matrix':
-        augmented = self.augment(self.identity())
-        for j in range(self.cols):
-            col = self.col(j)
-            for i in range(self.rows):
-                if not any(col):
-                    raise TypeError(
-                        "matrix is singular"
-                    )
-                
-        return self
+        M = self.copy()
+        print(self is M)
+        augmented = M.augment(M.identity())
+        reduced = M.rref(augmented)
+        inverse_matrix = Matrix([reduced.row(i)[M.rows:] for i in range(reduced.rows)])
+        return inverse_matrix
 
     def augment(self, other: 'Matrix') -> 'Matrix':
         if self.rows != other.rows or self.cols != other.cols:
@@ -129,17 +166,73 @@ class Matrix:
             raise TypeError(
                 f"cannot compute the dot product of vectors of length {len(v1)} and {len(v2)}"
             )
-        return sum(i * j for i, j in zip(v1, v2))
+        return sum(self.ew_mul(v1, v2))
 
+    def copy(self) -> 'Matrix':
+        return Matrix(self.data)
+
+    def rref(self, M: 'Matrix') -> 'Matrix':
+        # Let's do forward step first.
+        # at the end of this for loop, the matrix is in Row-Echelon format.
+        for i in range(min(M.rows, M.cols)):
+            # every iteration, ignore one more row and column
+            for r in range(i, M.rows):
+                # find the first row with a nonzero entry in first column
+                zero_row = M.elem(r, i) == 0
+                if zero_row:
+                    continue
+                # swap current row with first row
+                M.data[i], M.data[r] = M.data[r], M.data[i]
+                # add multiples of the new first row to lower rows so lower
+                # entries of first column is zero
+                first_row_first_col = M.elem(i, i)
+                for rr in range(i + 1, M.rows):
+                    this_row_first = M.elem(rr, i)
+                    scalarMultiple = -1 * this_row_first / first_row_first_col
+                    for cc in range(i, M.cols):
+                        M.data[rr][cc] += M.data[i][cc] * scalarMultiple
+                break
+        # Now reduce
+        for i in range(min(M.rows, M.cols) - 1, -1, -1):
+            # divide last non-zero row by first non-zero entry
+            first_elem_col = -1
+            first_elem = -1
+            for c in range(M.cols):
+                if M.elem(i, c) == 0:
+                    continue
+                if first_elem_col == -1:
+                    first_elem_col = c
+                    first_elem = M.elem(i, c)
+                M.data[i][c] /= first_elem
+            # add multiples of this row so all numbers above the leading 1 is zero
+            for r in range(i):
+                this_row_above = M.elem(r, first_elem_col)
+                scalarMultiple = -1 * this_row_above
+                for cc in range(M.cols):
+                    M.data[r][cc] += M.elem(i, cc) * scalarMultiple
+            # disregard this row and continue
+        return M
+
+n = Number
 
 m1 = Matrix([
-    [1, -1,  2], 
-    [2,  0,  3],
-    [0,  1, -1]
-])
+    [n(1), n(-1),  n(2), n(13), n(3), n(-4)], 
+    [n(0),  n(0),  n(3), n(8), n(-1),  n(2)],
+    [n(3),  n(1), n(-1), n(67), n(-5),  n(-2)],
+    [n(5),  n(14), n(-51), n(70), n(35),  n(6)],
+    [n(3),  n(21), n(-16), n(17), n(15),  n(31)],
+    [n(6),  n(-11), n(11), n(3), n(-1),  n(-3)]
+])  
 m2 = Matrix([
     [1, -3], 
     [4, 5],
     [3, 0]
 ])
-print(m1.inverse(), sep="\n")
+m3 = Matrix([
+    [n(1), n(-1),  n(2), n(13), n(3), n(-4)], 
+    [n(0),  n(0),  n(3), n(8), n(-1),  n(2)],
+    [n(3),  n(1), n(-1), n(67), n(-5),  n(-2)],
+    [n(5),  n(14), n(-51), n(70), n(35),  n(6)],
+    [n(3),  n(21), n(-16), n(17), n(15),  n(31)],
+    [n(6),  n(-11), n(11), n(3), n(-1),  n(-3)]
+])  
