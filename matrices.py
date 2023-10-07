@@ -140,7 +140,7 @@ class Matrix:
             [self.elem(i, j) * k for j in range(self.cols)] for i in range(self.rows)
         ])
 
-    def det(self) -> Number:
+    def det(self, M: 'Matrix') -> Number:
         pass
     
     def inverse(self) -> 'Matrix':
